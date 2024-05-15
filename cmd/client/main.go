@@ -15,11 +15,13 @@ func main() {
 
 	connectionStr := "amqp://guest:guest@localhost:5672/"
 	con, err := amqb.Dial(connectionStr)
+	defer con.Close()
+
+	publishCh, err := con.Channel()
 	if err != nil {
 		log.Fatalf("Cannot create channel connection: %v\n", err)
 	}
 
-	defer con.Close()
 	fmt.Println("Peril game connected to rabbitmq")
 
 	username, err := gamelogic.ClientWelcome()
@@ -31,8 +33,8 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		con,
 		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+gs.GetUsername(),
-		routing.PauseKey,
+		routing.ArmyMovesPrefix+"."+gs.GetUsername(),
+		routing.ArmyMovesPrefix+".*",
 		pubsub.SimpleQueueTransient,
 		handlerPause(gs),
 	)
@@ -48,13 +50,25 @@ func main() {
 
 		switch words[0] {
 		case "move":
-			_, err := gs.CommandMove(words)
+			mv, err := gs.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 
 			// TODO: Publish the move
+
+			err = pubsub.PublishJSON(
+				publishCh,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+mv.Player.Username,
+				mv,
+			)
+			if err != nil {
+				fmt.Printf("Cannot publish move: %v\n", err)
+				continue
+			}
+
 		case "spawn":
 			err = gs.CommandSpawn(words)
 			if err != nil {
