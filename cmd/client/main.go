@@ -38,7 +38,7 @@ func main() {
 		routing.ArmyMovesPrefix+"."+gs.GetUsername(),
 		routing.ArmyMovesPrefix+".*",
 		pubsub.SimpleQueueTransient,
-		handlerMove(gs),
+		handlerMove(gs, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("could not subscribe to army moves: %v", err)
