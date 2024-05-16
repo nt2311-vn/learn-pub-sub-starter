@@ -15,10 +15,11 @@ func handlerMove(
 ) func(gamelogic.ArmyMove) pubsub.Acktype {
 	return func(move gamelogic.ArmyMove) pubsub.Acktype {
 		defer fmt.Print("> ")
+
 		moveOutcome := gs.HandleMove(move)
 		switch moveOutcome {
 		case gamelogic.MoveOutcomeSamePlayer:
-			return pubsub.NackDiscard
+			return pubsub.Ack
 		case gamelogic.MoveOutComeSafe:
 			return pubsub.Ack
 		case gamelogic.MoveOutcomeMakeWar:
@@ -26,7 +27,10 @@ func handlerMove(
 				publishCh,
 				routing.ExchangePerilTopic,
 				routing.WarRecognitionsPrefix+"."+gs.GetUsername(),
-				gamelogic.RecognitionOfWar{Attacker: move.Player, Defender: gs.GetPlayerSnap()},
+				gamelogic.RecognitionOfWar{
+					Attacker: move.Player,
+					Defender: gs.GetPlayerSnap(),
+				},
 			)
 			if err != nil {
 				fmt.Printf("error: %s\n", err)
@@ -34,24 +38,17 @@ func handlerMove(
 			}
 			return pubsub.NackRequeue
 		}
+
 		fmt.Println("error: unknown move outcome")
 		return pubsub.NackDiscard
 	}
 }
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Acktype {
-	return func(ps routing.PlayingState) pubsub.Acktype {
-		defer fmt.Print("> ")
-		gs.HandlePause(ps)
-		return pubsub.Ack
-	}
-}
-
-func handleWar(gs *gamelogic.GameState) func(dw gamelogic.RecognitionOfWar) pubsub.Acktype {
+func handlerWar(gs *gamelogic.GameState) func(dw gamelogic.RecognitionOfWar) pubsub.Acktype {
 	return func(dw gamelogic.RecognitionOfWar) pubsub.Acktype {
 		defer fmt.Print("> ")
-		warOutCome, _, _ := gs.HandleWar(dw)
-		switch warOutCome {
+		warOutcome, _, _ := gs.HandleWar(dw)
+		switch warOutcome {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
@@ -63,7 +60,16 @@ func handleWar(gs *gamelogic.GameState) func(dw gamelogic.RecognitionOfWar) pubs
 		case gamelogic.WarOutcomeDraw:
 			return pubsub.Ack
 		}
+
 		fmt.Println("error: unknown war outcome")
 		return pubsub.NackDiscard
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Acktype {
+	return func(ps routing.PlayingState) pubsub.Acktype {
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
+		return pubsub.Ack
 	}
 }
