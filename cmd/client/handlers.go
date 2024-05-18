@@ -64,6 +64,7 @@ func handlerWar(
 			)
 			if err != nil {
 				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
 			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeYouWon:
@@ -74,6 +75,7 @@ func handlerWar(
 			)
 			if err != nil {
 				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
 			}
 
 			return pubsub.Ack
@@ -86,6 +88,7 @@ func handlerWar(
 			)
 			if err != nil {
 				fmt.Printf("error: %s\n", err)
+				return pubsub.NackRequeue
 			}
 
 			return pubsub.Ack
