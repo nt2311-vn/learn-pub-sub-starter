@@ -11,67 +11,65 @@ import (
 )
 
 func main() {
-	fmt.Println("Starting Peril server...")
-	connectionStr := "amqp://guest:guest@localhost:5672/"
+	const rabbitConnString = "amqp://guest:guest@localhost:5672/"
 
-	connection, err := amqp.Dial(connectionStr)
-
-	defer connection.Close()
-
+	conn, err := amqp.Dial(rabbitConnString)
 	if err != nil {
-		panic(err)
+		log.Fatalf("could not connect to RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+	fmt.Println("Peril game server connected to RabbitMQ!")
+
+	publishCh, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("could not create channel: %v", err)
 	}
 
-	fmt.Println("Connection is successful")
-
-	channel, err := connection.Channel()
-	if err != nil {
-		log.Fatalf("Cannot create channel %v", err)
-	}
-
-	_, queue, err := pubsub.DeclareAndBind(
-		connection,
+	err = pubsub.SubscribeGob(
+		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
-		routing.GameLogSlug+".",
+		routing.GameLogSlug+".*",
 		pubsub.SimpleQueueDurable,
+		handlerLogs(),
 	)
 	if err != nil {
-		log.Fatalf("could not subscribe to pause: %v", err)
+		log.Fatalf("could not starting consuming logs: %v", err)
 	}
 
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
-
 	gamelogic.PrintServerHelp()
+
 	for {
 		words := gamelogic.GetInput()
-
 		if len(words) == 0 {
 			continue
 		}
-
 		switch words[0] {
 		case "pause":
-			fmt.Println("Publishing pause game state")
+			fmt.Println("Publishing paused game state")
 			err = pubsub.PublishJSON(
-				channel,
+				publishCh,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
-				routing.PlayingState{IsPaused: true},
+				routing.PlayingState{
+					IsPaused: true,
+				},
 			)
 			if err != nil {
-				log.Printf("Could not publish time: %v", err)
+				log.Printf("could not publish time: %v", err)
 			}
 		case "resume":
-			fmt.Println("Publishing resume game state")
+			fmt.Println("Publishing resumes game state")
 			err = pubsub.PublishJSON(
-				channel,
+				publishCh,
 				routing.ExchangePerilDirect,
 				routing.PauseKey,
-				routing.PlayingState{IsPaused: false},
+				routing.PlayingState{
+					IsPaused: false,
+				},
 			)
 			if err != nil {
-				log.Printf("Could not publish time: %v", err)
+				log.Printf("could not publish time: %v", err)
 			}
 		case "quit":
 			log.Println("goodbye")
