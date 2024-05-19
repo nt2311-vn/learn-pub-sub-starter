@@ -118,6 +118,10 @@ func publishGameLog(publishCh *amqp.Channel, username, msg string) error {
 		publishCh,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug+"."+username,
-		routing.GameLog{Username: username, CurrentTime: time.Now(), Message: msg},
+		routing.GameLog{
+			Username:    username,
+			CurrentTime: time.Now(),
+			Message:     msg,
+		},
 	)
 }
