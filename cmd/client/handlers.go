@@ -77,10 +77,8 @@ func handlerWar(
 				fmt.Printf("error: %s\n", err)
 				return pubsub.NackRequeue
 			}
-
 			return pubsub.Ack
 		case gamelogic.WarOutcomeDraw:
-
 			err := publishGameLog(
 				publishCh,
 				gs.GetUsername(),
@@ -90,7 +88,6 @@ func handlerWar(
 				fmt.Printf("error: %s\n", err)
 				return pubsub.NackRequeue
 			}
-
 			return pubsub.Ack
 		}
 
